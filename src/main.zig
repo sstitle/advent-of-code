@@ -18,13 +18,10 @@ const State = struct {
 };
 
 pub fn reduce(state: State, command: []const u8) State {
-    std.debug.print("Reducing state with command: {s}\n", .{command});
-    // Validate input
     if (command.len < 2) unreachable;
 
     const direction = command[0];
     const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
-    std.debug.print("Direction: {c}, Amount: {d}\n", .{ direction, amount });
     const new_position = switch (direction) {
         // Take the new position with modulo without overflow
         'L' => @mod(@as(i64, state.current_position) - amount, MODULO_VALUE),
@@ -35,23 +32,25 @@ pub fn reduce(state: State, command: []const u8) State {
     return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
 }
 
+pub fn getInputPathForDay(allocator: std.mem.Allocator, day_number: u32) ![]const u8 {
+    const current_dir = std.fs.cwd();
+    const cwd_path = try current_dir.realpathAlloc(allocator, ".");
+
+    const data_dir = try std.fs.path.join(allocator, &[_][]const u8{ cwd_path, "data" });
+    const day_path_string = try std.fmt.allocPrint(allocator, "day_{d}.txt", .{day_number});
+
+    const day_path = try std.fs.path.join(allocator, &[_][]const u8{ data_dir, day_path_string });
+    return day_path;
+}
+
 pub fn main() !void {
     std.debug.print("Start of main\n", .{});
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    const current_dir = std.fs.cwd();
-    const cwd_path = try current_dir.realpathAlloc(alloc, ".");
-    std.debug.print("Current path: {s}\n", .{cwd_path});
-
-    const data_dir = try std.fs.path.join(alloc, &[_][]const u8{ cwd_path, "data" });
     const day_number = 1;
-    // Find path like "data/day_1.txt"
-    const day_path_string = try std.fmt.allocPrint(alloc, "day_{d}.txt", .{day_number});
-    std.debug.print("Day path string: {s}\n", .{day_path_string});
-
-    const day_path = try std.fs.path.join(alloc, &[_][]const u8{ data_dir, day_path_string });
+    const day_path = try getInputPathForDay(alloc, day_number);
     std.debug.print("Day path: {s}\n", .{day_path});
 
     std.debug.print("Initializing state\n", .{});
@@ -79,12 +78,8 @@ pub fn main() !void {
         };
         _ = reader.toss(1); // skip the newline delimiter
 
-        std.debug.print("{s}\n", .{line.written()});
-
         std.debug.print("Applying command: '{s}'\n", .{line.written()});
         current_state = reduce(current_state, line.written());
-
-        std.debug.print("Current state:\n", .{});
         current_state.logState();
 
         std.debug.print("\n", .{});
@@ -120,12 +115,4 @@ test "verify that we handle wraparound" {
 
     current_state = reduce(current_state, "L1");
     try std.testing.expectEqual(@as(i32, 99), current_state.current_position);
-}
-
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
