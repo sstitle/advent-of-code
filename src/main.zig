@@ -35,22 +35,22 @@ pub fn reduce(state: State, command: []const u8) State {
 pub fn getInputPathForDay(allocator: std.mem.Allocator, day_number: u32) ![]const u8 {
     const current_dir = std.fs.cwd();
     const cwd_path = try current_dir.realpathAlloc(allocator, ".");
+    defer allocator.free(cwd_path);
 
     const data_dir = try std.fs.path.join(allocator, &[_][]const u8{ cwd_path, "data" });
+    defer allocator.free(data_dir);
+
     const day_path_string = try std.fmt.allocPrint(allocator, "day_{d}.txt", .{day_number});
+    defer allocator.free(day_path_string);
 
     const day_path = try std.fs.path.join(allocator, &[_][]const u8{ data_dir, day_path_string });
     return day_path;
 }
 
-pub fn main() !void {
-    std.debug.print("Start of main\n", .{});
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const alloc = arena.allocator();
-
+pub fn solveDayOne(allocator: std.mem.Allocator) !i64 {
     const day_number = 1;
-    const day_path = try getInputPathForDay(alloc, day_number);
+    const day_path = try getInputPathForDay(allocator, day_number);
+    defer allocator.free(day_path);
     std.debug.print("Day path: {s}\n", .{day_path});
 
     std.debug.print("Initializing state\n", .{});
@@ -64,7 +64,7 @@ pub fn main() !void {
     defer file.close();
 
     // Accumulating writer to store each line
-    var line = std.Io.Writer.Allocating.init(alloc);
+    var line = std.Io.Writer.Allocating.init(allocator);
     defer line.deinit();
     var read_buf: [4096]u8 = undefined;
     var file_reader = file.reader(&read_buf);
@@ -88,9 +88,22 @@ pub fn main() !void {
 
     std.debug.print("Final state:\n", .{});
     current_state.logState();
+    return current_state.count_of_zeroes;
+}
 
-    std.debug.print("\n", .{});
-    try advent_of_code.bufferedPrint();
+pub fn main() !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const day_one_solution = solveDayOne(allocator);
+    std.debug.print("Day One Solution: {}\n", .{day_one_solution});
+}
+
+test "verify that we can still solve day one" {
+    const allocator = std.testing.allocator;
+    const day_one_solution = solveDayOne(allocator);
+    try std.testing.expectEqual(@as(i64, 1052), day_one_solution);
 }
 
 test "verify state reducer works on simple commands" {
