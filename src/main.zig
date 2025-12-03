@@ -116,16 +116,15 @@ pub fn getExampleActions() ![]const []const u8 {
     return &EXAMPLE_ACTIONS;
 }
 
-pub fn solveDayOne() !i64 {
+pub fn loadDayOneActions() ![]const []const u8 {
     const day_number = 1;
     var path_buf: [64]u8 = undefined;
     const day_path = try getInputPathForDay(&path_buf, day_number);
-    std.debug.print("Day path: {s}\n", .{day_path});
+    const actions = try readActionsFromFile(day_path);
+    return actions;
+}
 
-    const actions = try getExampleActions();
-    // const actions = try readActionsFromFile(day_path);
-    // defer std.heap.page_allocator.free(actions);
-
+pub fn solveDayOne(actions: []const []const u8) !i64 {
     const final_state = runActions(actions);
     std.debug.print("Final state:\n", .{});
     final_state.logState();
@@ -133,12 +132,31 @@ pub fn solveDayOne() !i64 {
 }
 
 pub fn main() !void {
-    const day_one_solution = try solveDayOne();
+    std.debug.print("Start of main with CLI arguments: {s}\n", .{std.os.argv[0]});
+    var args = try std.process.argsWithAllocator(std.heap.page_allocator);
+    defer args.deinit();
+
+    var use_example = false;
+    while (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--example")) {
+            use_example = true;
+        }
+    }
+    std.debug.print("Using example: {}\n", .{use_example});
+
+    var actions: []const []const u8 = &[_][]const u8{};
+    if (use_example) {
+        actions = try getExampleActions();
+    } else {
+        actions = try loadDayOneActions();
+    }
+    const day_one_solution = try solveDayOne(actions);
     std.debug.print("Day One Solution: {}\n", .{day_one_solution});
 }
 
 test "verify that we can still solve day one" {
-    const day_one_solution = try solveDayOne();
+    const actions = try loadDayOneActions();
+    const day_one_solution = try solveDayOne(actions);
     try std.testing.expectEqual(@as(i64, 1052), day_one_solution);
 }
 
