@@ -17,14 +17,8 @@ const State = struct {
     }
 };
 
-const Action = struct {
-    value: i64,
-};
-
-const COUNT_PASSING_ZEROES = true;
-
 // The first challenge requires a reducer that counts only when we stop on 0 after a rotation.
-pub fn reduce(state: State, command: []const u8) State {
+pub fn reducePartOne(state: State, command: []const u8) State {
     std.debug.print("Reducing state with command: {s}\n", .{command});
     if (command.len < 2) unreachable;
 
@@ -37,12 +31,24 @@ pub fn reduce(state: State, command: []const u8) State {
         else => unreachable,
     };
     const new_position = @mod(intermediate_position, MODULO_VALUE);
-    std.debug.print("New position: {d}\n", .{new_position});
-    const passing_zero_count = @divFloor(intermediate_position, MODULO_VALUE);
-    std.debug.print("Passing zero count: {d}\n", .{passing_zero_count});
+    const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
+    return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
+}
 
-    const stopped_on_zero = new_position == 0;
-    const new_count_of_zeroes = if (stopped_on_zero) state.count_of_zeroes + 1 else state.count_of_zeroes;
+pub fn reducePartTwo(state: State, command: []const u8) State {
+    std.debug.print("Reducing state with command: {s}\n", .{command});
+    if (command.len < 2) unreachable;
+
+    const direction = command[0];
+    const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
+    const intermediate_position = switch (direction) {
+        // Take the new position with modulo without overflow
+        'L' => @as(i64, state.current_position) - amount,
+        'R' => @as(i64, state.current_position) + amount,
+        else => unreachable,
+    };
+    const new_position = @mod(intermediate_position, MODULO_VALUE);
+    const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
     return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
 }
 
@@ -50,7 +56,7 @@ pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
     return std.fmt.bufPrint(buf, "data/day_{d}.txt", .{day_number});
 }
 
-pub fn runActions(actions: []const []const u8) State {
+pub fn runActions(actions: []const []const u8, reducer_func: fn (State, []const u8) State) State {
     std.debug.print("Initializing state\n", .{});
     const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
     std.debug.print("Starting state:\n", .{});
@@ -59,7 +65,7 @@ pub fn runActions(actions: []const []const u8) State {
 
     for (actions) |action| {
         std.debug.print("Applying command: '{s}'\n", .{action});
-        current_state = reduce(current_state, action);
+        current_state = reducer_func(current_state, action);
         current_state.logState();
         std.debug.print("\n", .{});
     }
@@ -124,8 +130,15 @@ pub fn loadDayOneActions() ![]const []const u8 {
     return actions;
 }
 
-pub fn solveDayOne(actions: []const []const u8) !i64 {
-    const final_state = runActions(actions);
+pub fn solveDayOnePartOne(actions: []const []const u8) !i64 {
+    const final_state = runActions(actions, reducePartOne);
+    std.debug.print("Final state:\n", .{});
+    final_state.logState();
+    return @intCast(final_state.count_of_zeroes);
+}
+
+pub fn solveDayOnePartTwo(actions: []const []const u8) !i64 {
+    const final_state = runActions(actions, reducePartTwo);
     std.debug.print("Final state:\n", .{});
     final_state.logState();
     return @intCast(final_state.count_of_zeroes);
@@ -150,20 +163,26 @@ pub fn main() !void {
     } else {
         actions = try loadDayOneActions();
     }
-    const day_one_solution = try solveDayOne(actions);
+    const day_one_solution = try solveDayOnePartOne(actions);
     std.debug.print("Day One Solution: {}\n", .{day_one_solution});
 }
 
-test "verify that we can still solve day one with data from input file" {
+test "verify that we can still solve day one part one with data from input file" {
     const actions = try loadDayOneActions();
-    const day_one_solution = try solveDayOne(actions);
-    try std.testing.expectEqual(@as(i64, 1052), day_one_solution);
+    const result = try solveDayOnePartOne(actions);
+    try std.testing.expectEqual(@as(i64, 1052), result);
 }
 
-test "verify that we can still solve day one with the simple example" {
+test "verify that we can still solve day one part one with the simple example" {
     const actions = try getExampleActions();
-    const day_one_solution = try solveDayOne(actions);
-    try std.testing.expectEqual(@as(i64, 3), day_one_solution);
+    const result = try solveDayOnePartOne(actions);
+    try std.testing.expectEqual(@as(i64, 3), result);
+}
+
+test "verify that we can still solve day one part twowith the simple example" {
+    const actions = try getExampleActions();
+    const result = try solveDayOnePartTwo(actions);
+    try std.testing.expectEqual(@as(i64, 6), result);
 }
 
 test "verify state reducer works on simple commands" {
@@ -171,10 +190,10 @@ test "verify state reducer works on simple commands" {
     try std.testing.expectEqual(@as(i32, 50), initial_state.current_position);
 
     var current_state = initial_state;
-    current_state = reduce(current_state, "L3");
+    current_state = reducePartOne(current_state, "L3");
     try std.testing.expectEqual(@as(i32, 47), current_state.current_position);
 
-    current_state = reduce(current_state, "R10");
+    current_state = reducePartOne(current_state, "R10");
     try std.testing.expectEqual(@as(i32, 57), current_state.current_position);
 }
 
@@ -183,9 +202,9 @@ test "verify that we handle wraparound" {
     try std.testing.expectEqual(@as(i32, 50), initial_state.current_position);
 
     var current_state = initial_state;
-    current_state = reduce(current_state, "L50");
+    current_state = reducePartOne(current_state, "L50");
     try std.testing.expectEqual(@as(i32, 0), current_state.current_position);
 
-    current_state = reduce(current_state, "L1");
+    current_state = reducePartOne(current_state, "L1");
     try std.testing.expectEqual(@as(i32, 99), current_state.current_position);
 }
