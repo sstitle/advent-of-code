@@ -17,18 +17,32 @@ const State = struct {
     }
 };
 
+const Action = struct {
+    value: i64,
+};
+
+const COUNT_PASSING_ZEROES = true;
+
+// The first challenge requires a reducer that counts only when we stop on 0 after a rotation.
 pub fn reduce(state: State, command: []const u8) State {
+    std.debug.print("Reducing state with command: {s}\n", .{command});
     if (command.len < 2) unreachable;
 
     const direction = command[0];
     const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
-    const new_position = switch (direction) {
+    const intermediate_position = switch (direction) {
         // Take the new position with modulo without overflow
-        'L' => @mod(@as(i64, state.current_position) - amount, MODULO_VALUE),
-        'R' => @mod(@as(i64, state.current_position) + amount, MODULO_VALUE),
+        'L' => @as(i64, state.current_position) - amount,
+        'R' => @as(i64, state.current_position) + amount,
         else => unreachable,
     };
-    const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
+    const new_position = @mod(intermediate_position, MODULO_VALUE);
+    std.debug.print("New position: {d}\n", .{new_position});
+    const passing_zero_count = @divFloor(intermediate_position, MODULO_VALUE);
+    std.debug.print("Passing zero count: {d}\n", .{passing_zero_count});
+
+    const stopped_on_zero = new_position == 0;
+    const new_count_of_zeroes = if (stopped_on_zero) state.count_of_zeroes + 1 else state.count_of_zeroes;
     return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
 }
 
@@ -36,62 +50,95 @@ pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
     return std.fmt.bufPrint(buf, "data/day_{d}.txt", .{day_number});
 }
 
-pub fn solveDayOne(allocator: std.mem.Allocator) !i64 {
-    const day_number = 1;
-    var path_buf: [64]u8 = undefined;
-    const day_path = try getInputPathForDay(&path_buf, day_number);
-    std.debug.print("Day path: {s}\n", .{day_path});
-
+pub fn runActions(actions: []const []const u8) State {
     std.debug.print("Initializing state\n", .{});
     const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
     std.debug.print("Starting state:\n", .{});
     initial_state.logState();
     var current_state = initial_state;
 
-    // We can read the file one line at a time and apply the reducer for each line
-    var file = try std.fs.cwd().openFile(day_path, .{ .mode = .read_only });
+    for (actions) |action| {
+        std.debug.print("Applying command: '{s}'\n", .{action});
+        current_state = reduce(current_state, action);
+        current_state.logState();
+        std.debug.print("\n", .{});
+    }
+
+    return current_state;
+}
+
+pub fn readActionsFromFile(file_path: []const u8) ![][]const u8 {
+    const allocator = std.heap.page_allocator;
+    var file = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
     defer file.close();
 
-    // Accumulating writer to store each line
-    var line = std.Io.Writer.Allocating.init(allocator);
-    defer line.deinit();
+    var actions: std.ArrayList([]const u8) = .empty;
+    errdefer actions.deinit(allocator);
+
     var read_buf: [4096]u8 = undefined;
     var file_reader = file.reader(&read_buf);
-
-    // Get pointer to the Reader interface (don't copy it!)
     const reader = &file_reader.interface;
-    // Read line by line
+
+    var line_writer = std.Io.Writer.Allocating.init(allocator);
+    defer line_writer.deinit();
+
     while (true) {
-        _ = reader.streamDelimiter(&line.writer, '\n') catch |err| {
+        _ = reader.streamDelimiter(&line_writer.writer, '\n') catch |err| {
             if (err == error.EndOfStream) break else return err;
         };
         _ = reader.toss(1); // skip the newline delimiter
 
-        std.debug.print("Applying command: '{s}'\n", .{line.written()});
-        current_state = reduce(current_state, line.written());
-        current_state.logState();
+        const line_str = try line_writer.toOwnedSlice();
+        if (line_str.len == 0) {
+            allocator.free(line_str);
+            break;
+        }
 
-        std.debug.print("\n", .{});
-        line.clearRetainingCapacity();
+        try actions.append(allocator, line_str);
     }
 
+    return actions.toOwnedSlice(allocator);
+}
+
+pub fn getExampleActions() ![]const []const u8 {
+    const EXAMPLE_ACTIONS = [_][]const u8{
+        "L68",
+        "L30",
+        "R48",
+        "L5",
+        "R60",
+        "L55",
+        "L1",
+        "L99",
+        "R14",
+        "L82",
+    };
+    return &EXAMPLE_ACTIONS;
+}
+
+pub fn solveDayOne() !i64 {
+    const day_number = 1;
+    var path_buf: [64]u8 = undefined;
+    const day_path = try getInputPathForDay(&path_buf, day_number);
+    std.debug.print("Day path: {s}\n", .{day_path});
+
+    const actions = try getExampleActions();
+    // const actions = try readActionsFromFile(day_path);
+    // defer std.heap.page_allocator.free(actions);
+
+    const final_state = runActions(actions);
     std.debug.print("Final state:\n", .{});
-    current_state.logState();
-    return current_state.count_of_zeroes;
+    final_state.logState();
+    return @intCast(final_state.count_of_zeroes);
 }
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    const day_one_solution = try solveDayOne(allocator);
+    const day_one_solution = try solveDayOne();
     std.debug.print("Day One Solution: {}\n", .{day_one_solution});
 }
 
 test "verify that we can still solve day one" {
-    const allocator = std.testing.allocator;
-    const day_one_solution = solveDayOne(allocator);
+    const day_one_solution = try solveDayOne();
     try std.testing.expectEqual(@as(i64, 1052), day_one_solution);
 }
 
