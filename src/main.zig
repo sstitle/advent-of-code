@@ -85,7 +85,7 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const day_one_solution = solveDayOne(allocator);
+    const day_one_solution = try solveDayOne(allocator);
     std.debug.print("Day One Solution: {}\n", .{day_one_solution});
 }
 
