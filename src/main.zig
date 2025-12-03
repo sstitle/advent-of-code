@@ -10,7 +10,7 @@ const MODULO_VALUE = 100;
 
 const State = struct {
     current_position: u8,
-    count_of_zeroes: u8,
+    count_of_zeroes: u32,
 
     pub fn logState(state: State) void {
         std.debug.print("Current position: {d}, Count of zeroes: {d}\n", .{ state.current_position, state.count_of_zeroes });
@@ -18,18 +18,21 @@ const State = struct {
 };
 
 pub fn reduce(state: State, command: []const u8) State {
+    std.debug.print("Reducing state with command: {s}\n", .{command});
     // Validate input
     if (command.len < 2) unreachable;
 
     const direction = command[0];
-    const amount = std.fmt.parseInt(u8, command[1..], 10) catch unreachable;
+    const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
+    std.debug.print("Direction: {c}, Amount: {d}\n", .{ direction, amount });
     const new_position = switch (direction) {
-        'L' => state.current_position - amount,
-        'R' => state.current_position + amount,
+        // Take the new position with modulo without overflow
+        'L' => @mod(@as(i64, state.current_position) - amount, MODULO_VALUE),
+        'R' => @mod(@as(i64, state.current_position) + amount, MODULO_VALUE),
         else => unreachable,
     };
     const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
-    return State{ .current_position = new_position % 100, .count_of_zeroes = new_count_of_zeroes };
+    return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
 }
 
 pub fn main() !void {
@@ -55,20 +58,43 @@ pub fn main() !void {
     const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
     std.debug.print("Starting state:\n", .{});
     initial_state.logState();
-
     var current_state = initial_state;
-    current_state = reduce(current_state, "L3");
+
+    // We can read the file one line at a time and apply the reducer for each line
+    var file = try std.fs.openFileAbsolute(day_path, .{ .mode = .read_only });
+    defer file.close();
+
+    // Accumulating writer to store each line
+    var line = std.Io.Writer.Allocating.init(alloc);
+    defer line.deinit();
+    var read_buf: [4096]u8 = undefined;
+    var file_reader = file.reader(&read_buf);
+
+    // Get pointer to the Reader interface (don't copy it!)
+    const reader = &file_reader.interface;
+    // Read line by line
+    while (true) {
+        _ = reader.streamDelimiter(&line.writer, '\n') catch |err| {
+            if (err == error.EndOfStream) break else return err;
+        };
+        _ = reader.toss(1); // skip the newline delimiter
+
+        std.debug.print("{s}\n", .{line.written()});
+
+        std.debug.print("Applying command: '{s}'\n", .{line.written()});
+        current_state = reduce(current_state, line.written());
+
+        std.debug.print("Current state:\n", .{});
+        current_state.logState();
+
+        std.debug.print("\n", .{});
+        line.clearRetainingCapacity();
+    }
+
+    std.debug.print("Final state:\n", .{});
     current_state.logState();
 
-    current_state = reduce(current_state, "R10");
-    current_state.logState();
-
-    // Read the file contents and dump to the console
-    // const file = try std.fs.openFileAbsolute(day_path, .{ .mode = .read_only });
-    // defer file.close();
-    // const contents = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
-    // std.debug.print("File contents: {s}\n", .{contents});
-
+    std.debug.print("\n", .{});
     try advent_of_code.bufferedPrint();
 }
 
@@ -82,6 +108,18 @@ test "verify state reducer works on simple commands" {
 
     current_state = reduce(current_state, "R10");
     try std.testing.expectEqual(@as(i32, 57), current_state.current_position);
+}
+
+test "verify that we handle wraparound" {
+    const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
+    try std.testing.expectEqual(@as(i32, 50), initial_state.current_position);
+
+    var current_state = initial_state;
+    current_state = reduce(current_state, "L50");
+    try std.testing.expectEqual(@as(i32, 0), current_state.current_position);
+
+    current_state = reduce(current_state, "L1");
+    try std.testing.expectEqual(@as(i32, 99), current_state.current_position);
 }
 
 test "simple test" {
