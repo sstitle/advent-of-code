@@ -154,10 +154,16 @@ pub fn main() !void {
     std.debug.print("Day One Solution: {}\n", .{day_one_solution});
 }
 
-test "verify that we can still solve day one" {
+test "verify that we can still solve day one with data from input file" {
     const actions = try loadDayOneActions();
     const day_one_solution = try solveDayOne(actions);
     try std.testing.expectEqual(@as(i64, 1052), day_one_solution);
+}
+
+test "verify that we can still solve day one with the simple example" {
+    const actions = try getExampleActions();
+    const day_one_solution = try solveDayOne(actions);
+    try std.testing.expectEqual(@as(i64, 3), day_one_solution);
 }
 
 test "verify state reducer works on simple commands" {
