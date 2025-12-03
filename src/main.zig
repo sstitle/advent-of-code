@@ -32,25 +32,14 @@ pub fn reduce(state: State, command: []const u8) State {
     return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
 }
 
-pub fn getInputPathForDay(allocator: std.mem.Allocator, day_number: u32) ![]const u8 {
-    const current_dir = std.fs.cwd();
-    const cwd_path = try current_dir.realpathAlloc(allocator, ".");
-    defer allocator.free(cwd_path);
-
-    const data_dir = try std.fs.path.join(allocator, &[_][]const u8{ cwd_path, "data" });
-    defer allocator.free(data_dir);
-
-    const day_path_string = try std.fmt.allocPrint(allocator, "day_{d}.txt", .{day_number});
-    defer allocator.free(day_path_string);
-
-    const day_path = try std.fs.path.join(allocator, &[_][]const u8{ data_dir, day_path_string });
-    return day_path;
+pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
+    return std.fmt.bufPrint(buf, "data/day_{d}.txt", .{day_number});
 }
 
 pub fn solveDayOne(allocator: std.mem.Allocator) !i64 {
     const day_number = 1;
-    const day_path = try getInputPathForDay(allocator, day_number);
-    defer allocator.free(day_path);
+    var path_buf: [64]u8 = undefined;
+    const day_path = try getInputPathForDay(&path_buf, day_number);
     std.debug.print("Day path: {s}\n", .{day_path});
 
     std.debug.print("Initializing state\n", .{});
@@ -60,7 +49,7 @@ pub fn solveDayOne(allocator: std.mem.Allocator) !i64 {
     var current_state = initial_state;
 
     // We can read the file one line at a time and apply the reducer for each line
-    var file = try std.fs.openFileAbsolute(day_path, .{ .mode = .read_only });
+    var file = try std.fs.cwd().openFile(day_path, .{ .mode = .read_only });
     defer file.close();
 
     // Accumulating writer to store each line
