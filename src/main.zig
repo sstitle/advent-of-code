@@ -3,8 +3,7 @@ const advent_of_code = @import("advent_of_code");
 
 // The Day 1 Advent of Code challeng involves a dial with numbers from 0 to 99.
 // It starts at 50 and we read in the input file with entries of L or R followed by a number to turn.
-// We're going to make a state reducer that will handle input commands and count the number of times we stop
-// on 0 after a rotation.
+// We're going to make a state reducer that will handle solve for us
 const INITIAL_VALUE = 50;
 const MODULO_VALUE = 100;
 
@@ -19,7 +18,6 @@ const State = struct {
 
 // The first challenge requires a reducer that counts only when we stop on 0 after a rotation.
 pub fn reducePartOne(state: State, command: []const u8) State {
-    std.debug.print("Reducing state with command: {s}\n", .{command});
     if (command.len < 2) unreachable;
 
     const direction = command[0];
@@ -36,20 +34,47 @@ pub fn reducePartOne(state: State, command: []const u8) State {
 }
 
 pub fn reducePartTwo(state: State, command: []const u8) State {
-    std.debug.print("Reducing state with command: {s}\n", .{command});
     if (command.len < 2) unreachable;
 
     const direction = command[0];
     const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
     const intermediate_position = switch (direction) {
-        // Take the new position with modulo without overflow
         'L' => @as(i64, state.current_position) - amount,
         'R' => @as(i64, state.current_position) + amount,
         else => unreachable,
     };
     const new_position = @mod(intermediate_position, MODULO_VALUE);
-    const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
-    return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
+
+    // Count how many times we click to 0 during this rotation
+    // For R: we click to 0 when stepping from 99 to 100 (=0), 199 to 200 (=0), etc.
+    //        This happens at positions 100, 200, 300... in range (P, P+A]
+    //        Count = floor((P+A)/100) since P < 100
+    // For L: we click to 0 when stepping from 1 to 0, 101 to 100 (=0), etc.
+    //        Count how many i in 1..A where (P - i) mod 100 == 0
+    //        i.e., i in {P, P+100, P+200, ...} ∩ [1, A] when P > 0
+    //        or i in {100, 200, ...} ∩ [1, A] when P == 0
+    const zero_crossings: u32 = switch (direction) {
+        'R' => @intCast(@divFloor(state.current_position + amount, MODULO_VALUE)),
+        'L' => blk: {
+            const pos = state.current_position;
+            if (pos == 0) {
+                // When starting at 0, we hit 0 again at steps 100, 200, ...
+                break :blk @intCast(@divFloor(amount, MODULO_VALUE));
+            } else if (amount >= pos) {
+                // We hit 0 at steps pos, pos+100, pos+200, ... up to A
+                // Count = floor((A - pos) / 100) + 1
+                break :blk @intCast(@divFloor(amount - pos, MODULO_VALUE) + 1);
+            } else {
+                break :blk 0;
+            }
+        },
+        else => unreachable,
+    };
+
+    return State{
+        .current_position = @intCast(new_position),
+        .count_of_zeroes = state.count_of_zeroes + zero_crossings,
+    };
 }
 
 pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
@@ -57,17 +82,11 @@ pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
 }
 
 pub fn runActions(actions: []const []const u8, reducer_func: fn (State, []const u8) State) State {
-    std.debug.print("Initializing state\n", .{});
-    const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
-    std.debug.print("Starting state:\n", .{});
-    initial_state.logState();
+    const initial_state = State{ .count_of_zeroes = 0, .current_position = INITIAL_VALUE };
     var current_state = initial_state;
 
     for (actions) |action| {
-        std.debug.print("Applying command: '{s}'\n", .{action});
         current_state = reducer_func(current_state, action);
-        current_state.logState();
-        std.debug.print("\n", .{});
     }
 
     return current_state;
@@ -132,15 +151,11 @@ pub fn loadDayOneActions() ![]const []const u8 {
 
 pub fn solveDayOnePartOne(actions: []const []const u8) !i64 {
     const final_state = runActions(actions, reducePartOne);
-    std.debug.print("Final state:\n", .{});
-    final_state.logState();
     return @intCast(final_state.count_of_zeroes);
 }
 
 pub fn solveDayOnePartTwo(actions: []const []const u8) !i64 {
     const final_state = runActions(actions, reducePartTwo);
-    std.debug.print("Final state:\n", .{});
-    final_state.logState();
     return @intCast(final_state.count_of_zeroes);
 }
 
@@ -163,8 +178,11 @@ pub fn main() !void {
     } else {
         actions = try loadDayOneActions();
     }
-    const day_one_solution = try solveDayOnePartOne(actions);
-    std.debug.print("Day One Solution: {}\n", .{day_one_solution});
+    const day_one_part_one = try solveDayOnePartOne(actions);
+    std.debug.print("Day One Part One: {}\n", .{day_one_part_one});
+
+    const day_one_part_two = try solveDayOnePartTwo(actions);
+    std.debug.print("Day One Part Two: {}\n", .{day_one_part_two});
 }
 
 test "verify that we can still solve day one part one with data from input file" {
@@ -186,8 +204,8 @@ test "verify that we can still solve day one part twowith the simple example" {
 }
 
 test "verify state reducer works on simple commands" {
-    const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
-    try std.testing.expectEqual(@as(i32, 50), initial_state.current_position);
+    const initial_state = State{ .count_of_zeroes = 0, .current_position = INITIAL_VALUE };
+    try std.testing.expectEqual(@as(i32, INITIAL_VALUE), initial_state.current_position);
 
     var current_state = initial_state;
     current_state = reducePartOne(current_state, "L3");
@@ -198,8 +216,8 @@ test "verify state reducer works on simple commands" {
 }
 
 test "verify that we handle wraparound" {
-    const initial_state = State{ .count_of_zeroes = 0, .current_position = 50 };
-    try std.testing.expectEqual(@as(i32, 50), initial_state.current_position);
+    const initial_state = State{ .count_of_zeroes = 0, .current_position = INITIAL_VALUE };
+    try std.testing.expectEqual(@as(i32, INITIAL_VALUE), initial_state.current_position);
 
     var current_state = initial_state;
     current_state = reducePartOne(current_state, "L50");
