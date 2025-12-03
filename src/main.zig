@@ -77,10 +77,6 @@ pub fn reducePartTwo(state: State, command: []const u8) State {
     };
 }
 
-pub fn getInputPathForDay(buf: []u8, day_number: u32) ![]const u8 {
-    return std.fmt.bufPrint(buf, "data/day_{d}.txt", .{day_number});
-}
-
 pub fn runActions(actions: []const []const u8, reducer_func: fn (State, []const u8) State) State {
     const initial_state = State{ .count_of_zeroes = 0, .current_position = INITIAL_VALUE };
     var current_state = initial_state;
@@ -144,7 +140,7 @@ pub fn getExampleActions() ![]const []const u8 {
 pub fn loadDayOneActions() ![]const []const u8 {
     const day_number = 1;
     var path_buf: [64]u8 = undefined;
-    const day_path = try getInputPathForDay(&path_buf, day_number);
+    const day_path = try std.fmt.bufPrint(&path_buf, "data/day_{d}.txt", .{day_number});
     const actions = try readActionsFromFile(day_path);
     return actions;
 }
