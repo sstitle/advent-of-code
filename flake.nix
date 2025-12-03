@@ -33,11 +33,10 @@
           # Development shell with nickel and mask
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              # Core tools
               git
-
               zig
-
+              nixd
+              nil
             ];
 
             shellHook = ''

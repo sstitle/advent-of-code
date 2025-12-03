@@ -2,8 +2,30 @@ const std = @import("std");
 const advent_of_code = @import("advent_of_code");
 
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    std.debug.print("Start of main\n", .{});
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const current_dir = std.fs.cwd();
+    const cwd_path = try current_dir.realpathAlloc(alloc, ".");
+    std.debug.print("Current path: {s}\n", .{cwd_path});
+
+    const data_dir = try std.fs.path.join(alloc, &[_][]const u8{ cwd_path, "data" });
+    const day_number = 1;
+    // Find path like "data/day_1.txt"
+    const day_path_string = try std.fmt.allocPrint(alloc, "day_{d}.txt", .{day_number});
+    std.debug.print("Day path string: {s}\n", .{day_path_string});
+
+    const day_path = try std.fs.path.join(alloc, &[_][]const u8{ data_dir, day_path_string });
+    std.debug.print("Day path: {s}\n", .{day_path});
+
+    // Read the file contents and dump to the console
+    const file = try std.fs.openFileAbsolute(day_path, .{ .mode = .read_only });
+    defer file.close();
+    const contents = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
+    std.debug.print("File contents: {s}\n", .{contents});
+
     try advent_of_code.bufferedPrint();
 }
 
@@ -13,15 +35,4 @@ test "simple test" {
     defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
     try list.append(gpa, 42);
     try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
 }
