@@ -92,7 +92,7 @@ pub fn getExampleActions() []const []const u8 {
 }
 
 pub fn loadActions(allocator: std.mem.Allocator) ![][]const u8 {
-    return utils.loadDayInput(allocator, 1);
+    return loadDayOneInput(allocator, 1);
 }
 
 pub fn solvePartOne(actions: []const []const u8) i64 {
@@ -103,6 +103,46 @@ pub fn solvePartOne(actions: []const []const u8) i64 {
 pub fn solvePartTwo(actions: []const []const u8) i64 {
     const final_state = runActions(actions, reducePartTwo);
     return @intCast(final_state.count_of_zeroes);
+}
+
+/// Reads lines from a file and returns them as a slice of strings.
+/// Caller is responsible for freeing the returned slice.
+pub fn readLinesFromFile(allocator: std.mem.Allocator, file_path: []const u8) ![][]const u8 {
+    var file = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
+    defer file.close();
+
+    var actions: std.ArrayList([]const u8) = .empty;
+    errdefer actions.deinit(allocator);
+
+    var read_buf: [4096]u8 = undefined;
+    var file_reader = file.reader(&read_buf);
+    const reader = &file_reader.interface;
+
+    var line_writer = std.Io.Writer.Allocating.init(allocator);
+    defer line_writer.deinit();
+
+    while (true) {
+        _ = reader.streamDelimiter(&line_writer.writer, '\n') catch |err| {
+            if (err == error.EndOfStream) break else return err;
+        };
+        _ = reader.toss(1); // skip the newline delimiter
+
+        const line_str = try line_writer.toOwnedSlice();
+        if (line_str.len == 0) {
+            allocator.free(line_str);
+            break;
+        }
+
+        try actions.append(allocator, line_str);
+    }
+
+    return actions.toOwnedSlice(allocator);
+}
+
+pub fn loadDayOneInput(allocator: std.mem.Allocator, day_number: u32) ![][]const u8 {
+    var path_buf: [64]u8 = undefined;
+    const day_path = try utils.getInputPathForDay(&path_buf, day_number);
+    return readLinesFromFile(allocator, day_path);
 }
 
 // Tests
