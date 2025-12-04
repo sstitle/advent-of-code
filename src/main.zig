@@ -1,7 +1,6 @@
 const std = @import("std");
 const day01 = @import("day01.zig");
 const day02 = @import("day02.zig");
-const utils = @import("utils.zig");
 
 const allocator = std.heap.page_allocator;
 
@@ -71,15 +70,14 @@ pub fn main() !void {
 }
 
 fn runDay01(use_example: bool) !void {
-    var owned_actions: ?[][]const u8 = null;
-    defer if (owned_actions) |actions| utils.freeLines(allocator, actions);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
 
     const actions: []const []const u8 = if (use_example)
         day01.getExampleActions()
-    else blk: {
-        owned_actions = try day01.loadActions(allocator);
-        break :blk owned_actions.?;
-    };
+    else
+        try day01.loadActions(alloc);
 
     const part_one = try day01.solvePartOne(actions);
     std.debug.print("Day One - Part One: {d}\n", .{part_one});
@@ -89,16 +87,17 @@ fn runDay01(use_example: bool) !void {
 }
 
 fn runDay02(use_example: bool) !void {
-    var owned_pairs: ?std.ArrayList(day02.Pair) = null;
-    defer if (owned_pairs) |*list| list.deinit(allocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
 
     const pairs: []const day02.Pair = if (use_example)
         day02.getExamplePairs()
     else blk: {
-        owned_pairs = try day02.loadPairs(allocator);
-        break :blk owned_pairs.?.items;
+        const pairs_list = try day02.loadPairs(alloc);
+        break :blk pairs_list.items;
     };
 
-    const result = try day02.solve(allocator, pairs);
+    const result = try day02.solve(alloc, pairs);
     std.debug.print("Day Two: {d}\n", .{result});
 }
