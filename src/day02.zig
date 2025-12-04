@@ -1,7 +1,12 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 
-const Pair = struct { u64, u64 };
+pub const Pair = struct { u64, u64 };
+
+const ParseError = error{
+    MalformedPair,
+    MissingValue,
+};
 
 /// Reads pairs from a comma-separated file in format "a-b,c-d,...".
 /// Caller is responsible for freeing the returned ArrayList.
@@ -20,18 +25,20 @@ pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) !s
     while (pair_iter.next()) |pair_str| {
         var num_iter = std.mem.splitSequence(u8, pair_str, "-");
 
-        const a = try std.fmt.parseInt(u64, num_iter.next() orelse continue, 10);
-        const b = try std.fmt.parseInt(u64, num_iter.next() orelse continue, 10);
+        const a_str = num_iter.next() orelse return ParseError.MalformedPair;
+        const b_str = num_iter.next() orelse return ParseError.MissingValue;
 
-        // std.debug.print("({}, {})\n", .{ a, b });
+        const a = try std.fmt.parseInt(u64, a_str, 10);
+        const b = try std.fmt.parseInt(u64, b_str, 10);
+
         try pairs.append(allocator, Pair{ a, b });
     }
     return pairs;
 }
 
-pub fn loadDayTwoInput(allocator: std.mem.Allocator, day_number: u32) !std.ArrayList(Pair) {
+pub fn loadPairs(allocator: std.mem.Allocator) !std.ArrayList(Pair) {
     var path_buf: [64]u8 = undefined;
-    const day_path = try utils.getInputPathForDay(&path_buf, day_number);
+    const day_path = try utils.getInputPathForDay(&path_buf, 2);
     return readPairsFromFile(allocator, day_path);
 }
 
@@ -80,17 +87,7 @@ pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, min_id: u64, max
     return invalid_ids.toOwnedSlice(allocator);
 }
 
-pub fn solve(allocator: std.mem.Allocator, use_example: bool) !u64 {
-    var input_list: ?std.ArrayList(Pair) = null;
-    defer if (input_list) |*list| list.deinit(allocator);
-
-    const pairs: []const Pair = if (use_example)
-        getExamplePairs()
-    else blk: {
-        input_list = try loadDayTwoInput(allocator, 2);
-        break :blk input_list.?.items;
-    };
-
+pub fn solve(allocator: std.mem.Allocator, pairs: []const Pair) !u64 {
     var acc: u64 = 0;
     for (pairs) |pair| {
         const invalid_ids = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
@@ -102,12 +99,16 @@ pub fn solve(allocator: std.mem.Allocator, use_example: bool) !u64 {
     return acc;
 }
 
-test "verify that the answer for day 2 example is correct" {
-    const result = try solve(std.testing.allocator, true);
-    try std.testing.expectEqual(result, 1227775554);
+test "solve with example" {
+    const pairs = getExamplePairs();
+    const result = try solve(std.testing.allocator, pairs);
+    try std.testing.expectEqual(1227775554, result);
 }
 
-test "verify that the answer for day 2 is correct" {
-    const result = try solve(std.testing.allocator, false);
-    try std.testing.expectEqual(result, 38158151648);
+test "solve with input file" {
+    const allocator = std.testing.allocator;
+    var pairs_list = try loadPairs(allocator);
+    defer pairs_list.deinit(allocator);
+    const result = try solve(allocator, pairs_list.items);
+    try std.testing.expectEqual(38158151648, result);
 }
