@@ -1,7 +1,16 @@
 const std = @import("std");
+const Day = @import("day.zig").Day;
 const utils = @import("utils.zig");
 
 pub const Pair = struct { u64, u64 };
+
+pub const day = Day(Pair, u64){
+    .load = &loadPairs,
+    .getExample = &getExamplePairs,
+    .solvers = &.{
+        .{ .name = "Result", .func = &solve },
+    },
+};
 
 const ParseError = error{
     MalformedPair,

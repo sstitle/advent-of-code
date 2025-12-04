@@ -65,39 +65,8 @@ pub fn main() !void {
     std.debug.print("Running day {d}{s}\n", .{ selected_day, if (use_example) " (example)" else "" });
 
     switch (selected_day) {
-        1 => try runDay01(allocator, use_example),
-        2 => try runDay02(allocator, use_example),
+        1 => try day01.day.run(allocator, use_example),
+        2 => try day02.day.run(allocator, use_example),
         else => std.debug.print("Day {d} not implemented yet\n", .{selected_day}),
     }
-}
-
-fn runDay01(allocator: std.mem.Allocator, use_example: bool) !void {
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
-    const alloc = arena.allocator();
-
-    const actions: []const []const u8 = if (use_example)
-        day01.getExampleActions()
-    else
-        try day01.loadActions(alloc);
-
-    const part_one = try day01.solvePartOne(actions);
-    std.debug.print("Day One - Part One: {d}\n", .{part_one});
-
-    const part_two = try day01.solvePartTwo(actions);
-    std.debug.print("Day One - Part Two: {d}\n", .{part_two});
-}
-
-fn runDay02(allocator: std.mem.Allocator, use_example: bool) !void {
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    defer arena.deinit();
-    const alloc = arena.allocator();
-
-    const pairs: []const day02.Pair = if (use_example)
-        day02.getExamplePairs()
-    else
-        try day02.loadPairs(alloc);
-
-    const result = try day02.solve(pairs);
-    std.debug.print("Day Two: {d}\n", .{result});
 }

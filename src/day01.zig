@@ -1,5 +1,15 @@
 const std = @import("std");
+const Day = @import("day.zig").Day;
 const utils = @import("utils.zig");
+
+pub const day = Day([]const u8, u32){
+    .load = &loadActions,
+    .getExample = &getExampleActions,
+    .solvers = &.{
+        .{ .name = "Part One", .func = &solvePartOne },
+        .{ .name = "Part Two", .func = &solvePartTwo },
+    },
+};
 
 const INITIAL_VALUE: u8 = 50;
 const MODULO_VALUE: u32 = 100;
