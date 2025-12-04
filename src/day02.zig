@@ -1,7 +1,7 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 
-const Pair = struct { i64, i64 };
+const Pair = struct { u64, u64 };
 
 /// Reads lines from a file and returns them as a slice of strings.
 /// Caller is responsible for freeing the returned slice.
@@ -20,8 +20,8 @@ pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) !s
     while (pair_iter.next()) |pair_str| {
         var num_iter = std.mem.splitSequence(u8, pair_str, "-");
 
-        const a = try std.fmt.parseInt(i64, num_iter.next() orelse continue, 10);
-        const b = try std.fmt.parseInt(i64, num_iter.next() orelse continue, 10);
+        const a = try std.fmt.parseInt(u64, num_iter.next() orelse continue, 10);
+        const b = try std.fmt.parseInt(u64, num_iter.next() orelse continue, 10);
 
         // std.debug.print("({}, {})\n", .{ a, b });
         try pairs.append(allocator, Pair{ a, b });
@@ -49,12 +49,13 @@ pub fn getExamplePairs() []const Pair {
     return &example;
 }
 
-pub fn countInvalidIdsInRange(minId: i64, maxId: i64) !u64 {
+pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, minId: u64, maxId: u64) ![]u64 {
     if (maxId < minId) {
         unreachable;
     }
-    const allocator = std.heap.page_allocator;
-    var invalidCount: u64 = 0;
+    var invalidIds: std.ArrayList(u64) = .empty;
+    errdefer invalidIds.deinit(allocator);
+
     var currentId = minId;
     while (currentId <= maxId) : (currentId += 1) {
         const stringified = try std.fmt.allocPrint(allocator, "{}", .{currentId});
@@ -64,15 +65,13 @@ pub fn countInvalidIdsInRange(minId: i64, maxId: i64) !u64 {
         }
         const firstHalf = stringified[0 .. stringified.len / 2];
         const secondHalf = stringified[stringified.len / 2 ..];
-        // Compare the string equality of firstHalf and secondHalf
         if (!std.mem.eql(u8, firstHalf, secondHalf)) {
             continue;
         }
-        std.debug.print("Considering {s}\n", .{stringified});
-        // TODO: check if invalid and increment invalidCount
-        invalidCount += 1;
+        std.debug.print("Found invalid ID: {s}\n", .{stringified});
+        try invalidIds.append(allocator, currentId);
     }
-    return invalidCount;
+    return invalidIds.toOwnedSlice(allocator);
 }
 
 pub fn solve(use_example: bool) !u64 {
@@ -88,9 +87,23 @@ pub fn solve(use_example: bool) !u64 {
     var acc: u64 = 0;
     for (pairs) |pair| {
         std.debug.print("({}, {})\n", .{ pair[0], pair[1] });
-        const invalidIdCount = try countInvalidIdsInRange(pair[0], pair[1]);
-        std.debug.print("Invalid IDs: {}\n", .{invalidIdCount});
-        acc += invalidIdCount;
+        const invalidIds = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
+        defer allocator.free(invalidIds);
+        std.debug.print("Invalid IDs: {}\n", .{invalidIds.len});
+        for (invalidIds) |id| {
+            std.debug.print("Invalid ID: {}\n", .{id});
+            acc += id;
+        }
     }
     return acc;
+}
+
+test "verify that the answer for day 2 example is correct" {
+    const result = try solve(true);
+    try std.testing.expectEqual(result, 1227775554);
+}
+
+test "verify that the answer for day 2 is correct" {
+    const result = try solve(false);
+    try std.testing.expectEqual(result, 38158151648);
 }
