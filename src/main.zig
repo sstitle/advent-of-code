@@ -1,5 +1,6 @@
 const std = @import("std");
 const day01 = @import("day01.zig");
+const day02 = @import("day02.zig");
 
 const allocator = std.heap.page_allocator;
 
@@ -38,7 +39,7 @@ pub fn main() !void {
 
     switch (selected_day) {
         1 => try runDay01(use_example),
-        // 2 => try runDay02(use_example),
+        2 => try runDay02(use_example),
         else => std.debug.print("Day {d} not implemented yet\n", .{selected_day}),
     }
 }
@@ -50,8 +51,14 @@ fn runDay01(use_example: bool) !void {
         try day01.loadActions(allocator);
 
     const part_one = day01.solvePartOne(actions);
-    std.debug.print("Part One: {d}\n", .{part_one});
+    std.debug.print("Day One - Part One: {d}\n", .{part_one});
 
     const part_two = day01.solvePartTwo(actions);
-    std.debug.print("Part Two: {d}\n", .{part_two});
+    std.debug.print("Day One - Part Two: {d}\n", .{part_two});
+}
+
+fn runDay02(use_example: bool) !void {
+    const result = day02.solve();
+    std.debug.print("Use example: {any}\n", .{use_example});
+    std.debug.print("Day Two: {any}\n", .{result});
 }
