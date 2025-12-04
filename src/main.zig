@@ -7,7 +7,7 @@ const allocator = std.heap.page_allocator;
 
 fn printHelp() void {
     std.debug.print(
-        \\Advent of Code 2024 Solutions
+        \\Advent of Code 2025 Solutions
         \\
         \\Usage: aoc [OPTIONS]
         \\
