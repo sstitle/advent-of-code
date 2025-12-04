@@ -95,10 +95,8 @@ fn runDay02(allocator: std.mem.Allocator, use_example: bool) !void {
 
     const pairs: []const day02.Pair = if (use_example)
         day02.getExamplePairs()
-    else blk: {
-        const pairs_list = try day02.loadPairs(alloc);
-        break :blk pairs_list.items;
-    };
+    else
+        try day02.loadPairs(alloc);
 
     const result = try day02.solve(pairs);
     std.debug.print("Day Two: {d}\n", .{result});

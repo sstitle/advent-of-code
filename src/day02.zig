@@ -9,8 +9,8 @@ const ParseError = error{
 };
 
 /// Reads pairs from a comma-separated file in format "a-b,c-d,...".
-/// Caller is responsible for freeing the returned ArrayList.
-pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) !std.ArrayList(Pair) {
+/// Caller is responsible for freeing the returned slice.
+pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) ![]Pair {
     var file = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
     defer file.close();
     const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
@@ -33,10 +33,10 @@ pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) !s
 
         try pairs.append(allocator, Pair{ a, b });
     }
-    return pairs;
+    return pairs.toOwnedSlice(allocator);
 }
 
-pub fn loadPairs(allocator: std.mem.Allocator) !std.ArrayList(Pair) {
+pub fn loadPairs(allocator: std.mem.Allocator) ![]Pair {
     var path_buf: [64]u8 = undefined;
     const day_path = try utils.getInputPathForDay(&path_buf, 2);
     return readPairsFromFile(allocator, day_path);
@@ -106,8 +106,8 @@ test "solve with example" {
 
 test "solve with input file" {
     const allocator = std.testing.allocator;
-    var pairs_list = try loadPairs(allocator);
-    defer pairs_list.deinit(allocator);
-    const result = try solve(pairs_list.items);
+    const pairs = try loadPairs(allocator);
+    defer allocator.free(pairs);
+    const result = try solve(pairs);
     try std.testing.expectEqual(38158151648, result);
 }
