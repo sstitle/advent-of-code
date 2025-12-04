@@ -49,7 +49,33 @@ pub fn getExamplePairs() []const Pair {
     return &example;
 }
 
-pub fn solve(use_example: bool) !i64 {
+pub fn countInvalidIdsInRange(minId: i64, maxId: i64) !u64 {
+    if (maxId < minId) {
+        unreachable;
+    }
+    const allocator = std.heap.page_allocator;
+    var invalidCount: u64 = 0;
+    var currentId = minId;
+    while (currentId <= maxId) : (currentId += 1) {
+        const stringified = try std.fmt.allocPrint(allocator, "{}", .{currentId});
+        defer allocator.free(stringified);
+        if (stringified.len % 2 != 0) {
+            continue;
+        }
+        const firstHalf = stringified[0 .. stringified.len / 2];
+        const secondHalf = stringified[stringified.len / 2 ..];
+        // Compare the string equality of firstHalf and secondHalf
+        if (!std.mem.eql(u8, firstHalf, secondHalf)) {
+            continue;
+        }
+        std.debug.print("Considering {s}\n", .{stringified});
+        // TODO: check if invalid and increment invalidCount
+        invalidCount += 1;
+    }
+    return invalidCount;
+}
+
+pub fn solve(use_example: bool) !u64 {
     std.debug.print("Solving day 2...\n", .{});
     const allocator = std.heap.page_allocator;
 
@@ -59,8 +85,12 @@ pub fn solve(use_example: bool) !i64 {
         (try loadDayTwoInput(allocator, 2)).items;
 
     std.debug.print("Got input\n", .{});
+    var acc: u64 = 0;
     for (pairs) |pair| {
         std.debug.print("({}, {})\n", .{ pair[0], pair[1] });
+        const invalidIdCount = try countInvalidIdsInRange(pair[0], pair[1]);
+        std.debug.print("Invalid IDs: {}\n", .{invalidIdCount});
+        acc += invalidIdCount;
     }
-    return -1;
+    return acc;
 }
