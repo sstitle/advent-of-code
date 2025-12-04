@@ -58,7 +58,6 @@ fn runDay01(use_example: bool) !void {
 }
 
 fn runDay02(use_example: bool) !void {
-    const result = day02.solve();
-    std.debug.print("Use example: {any}\n", .{use_example});
+    const result = day02.solve(use_example);
     std.debug.print("Day Two: {any}\n", .{result});
 }

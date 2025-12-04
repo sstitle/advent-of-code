@@ -35,11 +35,31 @@ pub fn loadDayTwoInput(allocator: std.mem.Allocator, day_number: u32) !std.Array
     return readPairsFromFile(allocator, day_path);
 }
 
-pub fn solve() !i64 {
+pub fn getExamplePairs() []const Pair {
+    const example = [_]Pair{
+        .{ 11, 22 },
+        .{ 95, 115 },
+        .{ 998, 1012 },
+        .{ 1188511880, 1188511890 },
+        .{ 222220, 222224 },
+        .{ 1698522, 1698528 },
+        .{ 446443, 446449 },
+        .{ 38593856, 38593862 },
+    };
+    return &example;
+}
+
+pub fn solve(use_example: bool) !i64 {
     std.debug.print("Solving day 2...\n", .{});
-    const input = try loadDayTwoInput(std.heap.page_allocator, 2);
+    const allocator = std.heap.page_allocator;
+
+    const pairs: []const Pair = if (use_example)
+        getExamplePairs()
+    else
+        (try loadDayTwoInput(allocator, 2)).items;
+
     std.debug.print("Got input\n", .{});
-    for (input.items) |pair| {
+    for (pairs) |pair| {
         std.debug.print("({}, {})\n", .{ pair[0], pair[1] });
     }
     return -1;
