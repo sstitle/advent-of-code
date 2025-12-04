@@ -49,6 +49,8 @@ pub fn getExamplePairs() []const Pair {
     return &example;
 }
 
+/// Generate "mirror" numbers where first half equals second half.
+/// For 2n digits, the number is x * (10^n + 1) where x has n digits.
 pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, minId: u64, maxId: u64) ![]u64 {
     if (maxId < minId) {
         unreachable;
@@ -56,21 +58,28 @@ pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, minId: u64, maxI
     var invalidIds: std.ArrayList(u64) = .empty;
     errdefer invalidIds.deinit(allocator);
 
-    var currentId = minId;
-    while (currentId <= maxId) : (currentId += 1) {
-        const stringified = try std.fmt.allocPrint(allocator, "{}", .{currentId});
-        defer allocator.free(stringified);
-        if (stringified.len % 2 != 0) {
-            continue;
+    // Try each even digit length: 2, 4, 6, 8, ...
+    var half_digits: u6 = 1;
+    while (half_digits <= 10) : (half_digits += 1) {
+        const multiplier = std.math.pow(u64, 10, half_digits) + 1;
+        const min_half = std.math.pow(u64, 10, half_digits - 1); // e.g., 10 for 2 half-digits
+        const max_half = std.math.pow(u64, 10, half_digits) - 1; // e.g., 99 for 2 half-digits
+
+        // Find the range of x values that produce numbers in [minId, maxId]
+        const start_x = @max(min_half, (minId + multiplier - 1) / multiplier); // ceil division
+        const end_x = @min(max_half, maxId / multiplier);
+
+        if (start_x > end_x) continue;
+
+        var x = start_x;
+        while (x <= end_x) : (x += 1) {
+            const num = x * multiplier;
+            if (num >= minId and num <= maxId) {
+                try invalidIds.append(allocator, num);
+            }
         }
-        const firstHalf = stringified[0 .. stringified.len / 2];
-        const secondHalf = stringified[stringified.len / 2 ..];
-        if (!std.mem.eql(u8, firstHalf, secondHalf)) {
-            continue;
-        }
-        std.debug.print("Found invalid ID: {s}\n", .{stringified});
-        try invalidIds.append(allocator, currentId);
     }
+
     return invalidIds.toOwnedSlice(allocator);
 }
 
@@ -86,12 +95,9 @@ pub fn solve(use_example: bool) !u64 {
     std.debug.print("Got input\n", .{});
     var acc: u64 = 0;
     for (pairs) |pair| {
-        std.debug.print("({}, {})\n", .{ pair[0], pair[1] });
         const invalidIds = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
         defer allocator.free(invalidIds);
-        std.debug.print("Invalid IDs: {}\n", .{invalidIds.len});
         for (invalidIds) |id| {
-            std.debug.print("Invalid ID: {}\n", .{id});
             acc += id;
         }
     }
