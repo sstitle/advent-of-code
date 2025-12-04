@@ -13,44 +13,50 @@ pub const State = struct {
     }
 };
 
-/// Part One reducer: counts only when we stop on 0 after a rotation.
-pub fn reducePartOne(state: State, command: []const u8) State {
-    if (command.len < 2) unreachable;
+const Command = struct {
+    direction: u8,
+    amount: u32,
+};
 
-    const direction = command[0];
-    const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
-    const intermediate_position = switch (direction) {
-        'L' => @as(i64, state.current_position) - amount,
-        'R' => @as(i64, state.current_position) + amount,
+fn parseCommand(command: []const u8) Command {
+    if (command.len < 2) unreachable;
+    return .{
+        .direction = command[0],
+        .amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable,
+    };
+}
+
+fn computeNewPosition(current: u8, cmd: Command) u8 {
+    const intermediate: i64 = switch (cmd.direction) {
+        'L' => @as(i64, current) - cmd.amount,
+        'R' => @as(i64, current) + cmd.amount,
         else => unreachable,
     };
-    const new_position = @mod(intermediate_position, MODULO_VALUE);
-    const new_count_of_zeroes = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
-    return State{ .current_position = @intCast(new_position), .count_of_zeroes = new_count_of_zeroes };
+    return @intCast(@mod(intermediate, MODULO_VALUE));
+}
+
+/// Part One reducer: counts only when we stop on 0 after a rotation.
+pub fn reducePartOne(state: State, command: []const u8) State {
+    const cmd = parseCommand(command);
+    const new_position = computeNewPosition(state.current_position, cmd);
+    const new_count = if (new_position == 0) state.count_of_zeroes + 1 else state.count_of_zeroes;
+    return State{ .current_position = new_position, .count_of_zeroes = new_count };
 }
 
 /// Part Two reducer: counts every time the dial clicks to 0 during rotation.
 pub fn reducePartTwo(state: State, command: []const u8) State {
-    if (command.len < 2) unreachable;
-
-    const direction = command[0];
-    const amount = std.fmt.parseInt(u32, command[1..], 10) catch unreachable;
-    const intermediate_position = switch (direction) {
-        'L' => @as(i64, state.current_position) - amount,
-        'R' => @as(i64, state.current_position) + amount,
-        else => unreachable,
-    };
-    const new_position = @mod(intermediate_position, MODULO_VALUE);
+    const cmd = parseCommand(command);
+    const new_position = computeNewPosition(state.current_position, cmd);
 
     // Count how many times we click to 0 during this rotation
-    const zero_crossings: u32 = switch (direction) {
-        'R' => @intCast(@divFloor(state.current_position + amount, MODULO_VALUE)),
+    const zero_crossings: u32 = switch (cmd.direction) {
+        'R' => @intCast(@divFloor(state.current_position + cmd.amount, MODULO_VALUE)),
         'L' => blk: {
             const pos = state.current_position;
             if (pos == 0) {
-                break :blk @intCast(@divFloor(amount, MODULO_VALUE));
-            } else if (amount >= pos) {
-                break :blk @intCast(@divFloor(amount - pos, MODULO_VALUE) + 1);
+                break :blk @intCast(@divFloor(cmd.amount, MODULO_VALUE));
+            } else if (cmd.amount >= pos) {
+                break :blk @intCast(@divFloor(cmd.amount - pos, MODULO_VALUE) + 1);
             } else {
                 break :blk 0;
             }
@@ -59,7 +65,7 @@ pub fn reducePartTwo(state: State, command: []const u8) State {
     };
 
     return State{
-        .current_position = @intCast(new_position),
+        .current_position = new_position,
         .count_of_zeroes = state.count_of_zeroes + zero_crossings,
     };
 }

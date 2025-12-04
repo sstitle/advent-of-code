@@ -58,6 +58,6 @@ fn runDay01(use_example: bool) !void {
 }
 
 fn runDay02(use_example: bool) !void {
-    const result = day02.solve(use_example);
-    std.debug.print("Day Two: {any}\n", .{result});
+    const result = try day02.solve(allocator, use_example);
+    std.debug.print("Day Two: {d}\n", .{result});
 }

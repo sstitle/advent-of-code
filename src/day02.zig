@@ -3,8 +3,8 @@ const utils = @import("utils.zig");
 
 const Pair = struct { u64, u64 };
 
-/// Reads lines from a file and returns them as a slice of strings.
-/// Caller is responsible for freeing the returned slice.
+/// Reads pairs from a comma-separated file in format "a-b,c-d,...".
+/// Caller is responsible for freeing the returned ArrayList.
 pub fn readPairsFromFile(allocator: std.mem.Allocator, file_path: []const u8) !std.ArrayList(Pair) {
     var file = try std.fs.cwd().openFile(file_path, .{ .mode = .read_only });
     defer file.close();
@@ -51,12 +51,12 @@ pub fn getExamplePairs() []const Pair {
 
 /// Generate "mirror" numbers where first half equals second half.
 /// For 2n digits, the number is x * (10^n + 1) where x has n digits.
-pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, minId: u64, maxId: u64) ![]u64 {
-    if (maxId < minId) {
-        unreachable;
+pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, min_id: u64, max_id: u64) ![]u64 {
+    if (max_id < min_id) {
+        return error.InvalidRange;
     }
-    var invalidIds: std.ArrayList(u64) = .empty;
-    errdefer invalidIds.deinit(allocator);
+    var invalid_ids: std.ArrayList(u64) = .empty;
+    errdefer invalid_ids.deinit(allocator);
 
     // Try each even digit length: 2, 4, 6, 8, ...
     var half_digits: u6 = 1;
@@ -65,39 +65,37 @@ pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, minId: u64, maxI
         const min_half = std.math.pow(u64, 10, half_digits - 1); // e.g., 10 for 2 half-digits
         const max_half = std.math.pow(u64, 10, half_digits) - 1; // e.g., 99 for 2 half-digits
 
-        // Find the range of x values that produce numbers in [minId, maxId]
-        const start_x = @max(min_half, (minId + multiplier - 1) / multiplier); // ceil division
-        const end_x = @min(max_half, maxId / multiplier);
+        // Find the range of x values that produce numbers in [min_id, max_id]
+        const start_x = @max(min_half, (min_id + multiplier - 1) / multiplier); // ceil division
+        const end_x = @min(max_half, max_id / multiplier);
 
         if (start_x > end_x) continue;
 
         var x = start_x;
         while (x <= end_x) : (x += 1) {
-            const num = x * multiplier;
-            if (num >= minId and num <= maxId) {
-                try invalidIds.append(allocator, num);
-            }
+            try invalid_ids.append(allocator, x * multiplier);
         }
     }
 
-    return invalidIds.toOwnedSlice(allocator);
+    return invalid_ids.toOwnedSlice(allocator);
 }
 
-pub fn solve(use_example: bool) !u64 {
-    std.debug.print("Solving day 2...\n", .{});
-    const allocator = std.heap.page_allocator;
+pub fn solve(allocator: std.mem.Allocator, use_example: bool) !u64 {
+    var input_list: ?std.ArrayList(Pair) = null;
+    defer if (input_list) |*list| list.deinit(allocator);
 
     const pairs: []const Pair = if (use_example)
         getExamplePairs()
-    else
-        (try loadDayTwoInput(allocator, 2)).items;
+    else blk: {
+        input_list = try loadDayTwoInput(allocator, 2);
+        break :blk input_list.?.items;
+    };
 
-    std.debug.print("Got input\n", .{});
     var acc: u64 = 0;
     for (pairs) |pair| {
-        const invalidIds = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
-        defer allocator.free(invalidIds);
-        for (invalidIds) |id| {
+        const invalid_ids = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
+        defer allocator.free(invalid_ids);
+        for (invalid_ids) |id| {
             acc += id;
         }
     }
@@ -105,11 +103,11 @@ pub fn solve(use_example: bool) !u64 {
 }
 
 test "verify that the answer for day 2 example is correct" {
-    const result = try solve(true);
+    const result = try solve(std.testing.allocator, true);
     try std.testing.expectEqual(result, 1227775554);
 }
 
 test "verify that the answer for day 2 is correct" {
-    const result = try solve(false);
+    const result = try solve(std.testing.allocator, false);
     try std.testing.expectEqual(result, 38158151648);
 }
