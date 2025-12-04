@@ -106,12 +106,12 @@ pub fn loadActions(allocator: std.mem.Allocator) ![][]const u8 {
     return utils.readLinesForDay(allocator, 1);
 }
 
-pub fn solvePartOne(actions: []const []const u8) !u64 {
+pub fn solvePartOne(actions: []const []const u8) !u32 {
     const final_state = try runActions(actions, &reducePartOne);
     return final_state.count_of_zeroes;
 }
 
-pub fn solvePartTwo(actions: []const []const u8) !u64 {
+pub fn solvePartTwo(actions: []const []const u8) !u32 {
     const final_state = try runActions(actions, &reducePartTwo);
     return final_state.count_of_zeroes;
 }

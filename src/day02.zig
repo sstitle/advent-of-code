@@ -56,16 +56,17 @@ pub fn getExamplePairs() []const Pair {
     return &example;
 }
 
-/// Generate "mirror" numbers where first half equals second half.
+/// Sum "mirror" numbers in range where first half equals second half.
 /// For 2n digits, the number is x * (10^n + 1) where x has n digits.
-pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, min_id: u64, max_id: u64) ![]u64 {
+/// Uses arithmetic series formula to avoid iteration: sum = n * (first + last) / 2
+fn sumMirrorNumbersInRange(min_id: u64, max_id: u64) error{InvalidRange}!u64 {
     if (max_id < min_id) {
         return error.InvalidRange;
     }
-    var invalid_ids: std.ArrayList(u64) = .empty;
-    errdefer invalid_ids.deinit(allocator);
 
-    // Try each even digit length: 2, 4, 6, 8, ...
+    var total: u64 = 0;
+
+    // Try each even digit length: 2, 4, 6, 8, ... up to 20 digits (u64 max is ~1.8e19)
     var half_digits: u6 = 1;
     while (half_digits <= 10) : (half_digits += 1) {
         const multiplier = std.math.pow(u64, 10, half_digits) + 1;
@@ -78,30 +79,28 @@ pub fn searchForInvalidIdsInRange(allocator: std.mem.Allocator, min_id: u64, max
 
         if (start_x > end_x) continue;
 
-        var x = start_x;
-        while (x <= end_x) : (x += 1) {
-            try invalid_ids.append(allocator, x * multiplier);
-        }
+        // Sum of arithmetic series: count * (first + last) / 2
+        // where first = start_x * multiplier, last = end_x * multiplier
+        const count = end_x - start_x + 1;
+        const first_val = start_x * multiplier;
+        const last_val = end_x * multiplier;
+        total += count * (first_val + last_val) / 2;
     }
 
-    return invalid_ids.toOwnedSlice(allocator);
+    return total;
 }
 
-pub fn solve(allocator: std.mem.Allocator, pairs: []const Pair) !u64 {
+pub fn solve(pairs: []const Pair) !u64 {
     var acc: u64 = 0;
     for (pairs) |pair| {
-        const invalid_ids = try searchForInvalidIdsInRange(allocator, pair[0], pair[1]);
-        defer allocator.free(invalid_ids);
-        for (invalid_ids) |id| {
-            acc += id;
-        }
+        acc += try sumMirrorNumbersInRange(pair[0], pair[1]);
     }
     return acc;
 }
 
 test "solve with example" {
     const pairs = getExamplePairs();
-    const result = try solve(std.testing.allocator, pairs);
+    const result = try solve(pairs);
     try std.testing.expectEqual(1227775554, result);
 }
 
@@ -109,6 +108,6 @@ test "solve with input file" {
     const allocator = std.testing.allocator;
     var pairs_list = try loadPairs(allocator);
     defer pairs_list.deinit(allocator);
-    const result = try solve(allocator, pairs_list.items);
+    const result = try solve(pairs_list.items);
     try std.testing.expectEqual(38158151648, result);
 }

@@ -2,8 +2,6 @@ const std = @import("std");
 const day01 = @import("day01.zig");
 const day02 = @import("day02.zig");
 
-const allocator = std.heap.page_allocator;
-
 fn printHelp() void {
     std.debug.print(
         \\Advent of Code 2025 Solutions
@@ -24,6 +22,10 @@ fn printHelp() void {
 }
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
     var args = try std.process.argsWithAllocator(allocator);
     defer args.deinit();
 
@@ -63,13 +65,13 @@ pub fn main() !void {
     std.debug.print("Running day {d}{s}\n", .{ selected_day, if (use_example) " (example)" else "" });
 
     switch (selected_day) {
-        1 => try runDay01(use_example),
-        2 => try runDay02(use_example),
+        1 => try runDay01(allocator, use_example),
+        2 => try runDay02(allocator, use_example),
         else => std.debug.print("Day {d} not implemented yet\n", .{selected_day}),
     }
 }
 
-fn runDay01(use_example: bool) !void {
+fn runDay01(allocator: std.mem.Allocator, use_example: bool) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
@@ -86,7 +88,7 @@ fn runDay01(use_example: bool) !void {
     std.debug.print("Day One - Part Two: {d}\n", .{part_two});
 }
 
-fn runDay02(use_example: bool) !void {
+fn runDay02(allocator: std.mem.Allocator, use_example: bool) !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
@@ -98,6 +100,6 @@ fn runDay02(use_example: bool) !void {
         break :blk pairs_list.items;
     };
 
-    const result = try day02.solve(alloc, pairs);
+    const result = try day02.solve(pairs);
     std.debug.print("Day Two: {d}\n", .{result});
 }
