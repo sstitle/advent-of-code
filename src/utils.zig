@@ -28,11 +28,6 @@ pub fn readLinesFromFile(allocator: std.mem.Allocator, file_path: []const u8) ![
         _ = reader.toss(1); // skip the newline delimiter
 
         const line_str = try line_writer.toOwnedSlice();
-        if (line_str.len == 0) {
-            allocator.free(line_str);
-            break;
-        }
-
         try lines.append(allocator, line_str);
     }
 
