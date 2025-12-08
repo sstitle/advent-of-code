@@ -1,6 +1,6 @@
 # Advent of Code
 
-A Nix-based development environment with nickel and mask.
+Solutions for the [Advent of Code 2025](https://adventofcode.com/) using [Zig](https://ziglang.org/).
 
 <!-- mdformat-toc start --slug=github --no-anchors --maxlevel=6 --minlevel=1 -->
 
@@ -12,6 +12,7 @@ A Nix-based development environment with nickel and mask.
     - [Task Automation](#task-automation)
     - [Code Formatting](#code-formatting)
     - [Project Structure](#project-structure)
+  - [Core Usage](#core-usage)
 
 <!-- mdformat-toc end -->
 
@@ -35,16 +36,6 @@ A Nix-based development environment with nickel and mask.
    ```bash
    direnv allow
    ```
-
-### Available Tools
-
-This development environment includes:
-
-- **nickel**: Configuration language for writing maintainable configuration files
-- **mask**: Task runner for automating common development tasks
-- **treefmt**: Multi-language code formatter
-- **git**: Version control
-- **direnv/nix-direnv**: Automatic environment loading
 
 ### Task Automation
 
@@ -72,3 +63,13 @@ nix fmt
 ├── .envrc             # direnv configuration
 └── README.md          # This file
 ```
+
+## Core Usage
+
+To run the solution for a specific day, run a command like:
+
+```bash
+zig build run -- --day [DAY]
+```
+
+Most days have a `--example` flag to run the example input instead of the actual input.
