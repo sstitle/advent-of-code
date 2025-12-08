@@ -21,6 +21,7 @@ pub const day = Day([]const u8, u64){
     .getExample = &getExampleInput,
     .solvers = &.{
         .{ .name = "Part One", .func = &solvePartOne },
+        .{ .name = "Part Two", .func = &solvePartTwo },
     },
 };
 
@@ -71,6 +72,64 @@ pub fn solvePartOne(lines: []const []const u8) !u64 {
     }
 
     return fresh_count;
+}
+
+fn compareRangesByStart(_: void, a: Range, b: Range) bool {
+    return a.start < b.start;
+}
+
+pub fn solvePartTwo(lines: []const []const u8) !u64 {
+    var ranges: std.ArrayList(Range) = .empty;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // Parse only the ranges (first section)
+    for (lines) |line| {
+        if (line.len == 0) {
+            break; // Stop at empty line
+        }
+
+        // Parse range like "3-5"
+        var parts = std.mem.splitScalar(u8, line, '-');
+        const start_str = parts.next() orelse continue;
+        const end_str = parts.next() orelse continue;
+        const start = try std.fmt.parseInt(u64, start_str, 10);
+        const end = try std.fmt.parseInt(u64, end_str, 10);
+        try ranges.append(allocator, .{ .start = start, .end = end });
+    }
+
+    // Sort ranges by start
+    std.mem.sort(Range, ranges.items, {}, compareRangesByStart);
+
+    // Merge overlapping ranges and count unique IDs
+    var total_fresh: u64 = 0;
+    var current_start: u64 = 0;
+    var current_end: u64 = 0;
+    var first = true;
+
+    for (ranges.items) |range| {
+        if (first) {
+            current_start = range.start;
+            current_end = range.end;
+            first = false;
+        } else if (range.start <= current_end + 1) {
+            // Overlapping or adjacent ranges - extend current range
+            current_end = @max(current_end, range.end);
+        } else {
+            // Non-overlapping - count current range and start new one
+            total_fresh += current_end - current_start + 1;
+            current_start = range.start;
+            current_end = range.end;
+        }
+    }
+
+    // Count the last range
+    if (!first) {
+        total_fresh += current_end - current_start + 1;
+    }
+
+    return total_fresh;
 }
 
 pub fn getExampleInput() []const []const u8 {
