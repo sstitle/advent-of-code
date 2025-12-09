@@ -7,6 +7,7 @@ pub const day = Day([]const u8, u64){
     .getExample = &getExampleInput,
     .solvers = &.{
         .{ .name = "Part One", .func = &solvePartOne },
+        .{ .name = "Part Two", .func = &solvePartTwo },
     },
 };
 
@@ -94,8 +95,57 @@ pub fn solvePartOne(input: []const []const u8) !u64 {
     return solve(input, 1000);
 }
 
-pub fn solveExample(input: []const []const u8) !u64 {
-    return solve(input, 10);
+pub fn solvePartTwo(input: []const []const u8) !u64 {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // Parse points
+    var points: std.ArrayList(Point) = .empty;
+    for (input) |line| {
+        if (line.len == 0) continue;
+
+        var parts = std.mem.splitScalar(u8, line, ',');
+        const x = try std.fmt.parseInt(i64, parts.next().?, 10);
+        const y = try std.fmt.parseInt(i64, parts.next().?, 10);
+        const z = try std.fmt.parseInt(i64, parts.next().?, 10);
+
+        try points.append(allocator, .{ .x = x, .y = y, .z = z });
+    }
+
+    const n = points.items.len;
+
+    // Generate all pairs with distances
+    var pairs: std.ArrayList(Pair) = .empty;
+    for (0..n) |i| {
+        for (i + 1..n) |j| {
+            const dist_sq = distanceSquared(points.items[i], points.items[j]);
+            try pairs.append(allocator, .{ .i = i, .j = j, .dist_sq = dist_sq });
+        }
+    }
+
+    // Sort by distance
+    std.mem.sort(Pair, pairs.items, {}, comparePairs);
+
+    // Union-Find to track circuits
+    var uf = try UnionFind.init(allocator, n);
+
+    // Process pairs until all boxes are in one circuit
+    // We need n-1 successful unions to connect n boxes
+    var successful_unions: usize = 0;
+    for (pairs.items) |pair| {
+        if (uf.unite(pair.i, pair.j)) {
+            successful_unions += 1;
+            if (successful_unions == n - 1) {
+                // This is the final connection!
+                const x1: u64 = @intCast(points.items[pair.i].x);
+                const x2: u64 = @intCast(points.items[pair.j].x);
+                return x1 * x2;
+            }
+        }
+    }
+
+    return 0;
 }
 
 fn solve(input: []const []const u8, num_connections: usize) !u64 {
