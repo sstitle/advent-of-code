@@ -6,6 +6,7 @@ const day04 = @import("day04.zig");
 const day05 = @import("day05.zig");
 const day06 = @import("day06.zig");
 const day07 = @import("day07.zig");
+const day08 = @import("day08.zig");
 
 fn printHelp() void {
     std.debug.print(
@@ -77,6 +78,7 @@ pub fn main() !void {
         5 => try day05.day.run(allocator, use_example),
         6 => try day06.day.run(allocator, use_example),
         7 => try day07.day.run(allocator, use_example),
+        8 => try day08.day.run(allocator, use_example),
         else => std.debug.print("Day {d} not implemented yet\n", .{selected_day}),
     }
 }
