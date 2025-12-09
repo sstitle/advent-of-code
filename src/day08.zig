@@ -183,8 +183,7 @@ fn solve(input: []const []const u8, num_connections: usize) !u64 {
     // Union-Find to track circuits
     var uf = try UnionFind.init(allocator, n);
 
-    // Process the first num_connections pairs (not num_connections successful unions!)
-    // The problem says "the ten shortest connections" which means we try 10 pairs
+    // Process the first num_connections pairs
     for (pairs.items[0..@min(num_connections, pairs.items.len)]) |pair| {
         _ = uf.unite(pair.i, pair.j);
     }
